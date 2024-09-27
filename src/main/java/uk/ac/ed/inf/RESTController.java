@@ -56,7 +56,7 @@ public class RESTController {
 
         String distance = getDistanceTo(longLatPair).getBody();
 
-        if (distance.equals("Invalid coordinates")) {
+        if (distance.equals("Invalid coordinates")){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
         else {
