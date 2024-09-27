@@ -1,13 +1,7 @@
 package uk.ac.ed.inf;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.boot.jackson.JsonObjectDeserializer;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import uk.ac.ed.inf.dataTypes.LongLat;
 import uk.ac.ed.inf.dataTypes.LongLatPair;
 import java.lang.Math;
-import java.util.List;
+import static java.lang.Double.parseDouble;
 
 @RestController
 public class RESTController {
@@ -29,13 +23,14 @@ public class RESTController {
     }
 
     @PostMapping("/distanceTo")
-    public ResponseEntity<String> getDistanceTo(@RequestBody String longLatPair) throws JsonProcessingException {
+    public ResponseEntity<String> getDistanceTo(@RequestBody String longLatPair){
 
         LongLatPair positions;
 
         try {
             positions = mapper.readValue(longLatPair, LongLatPair.class);
-        } catch (JsonProcessingException e) {
+        }
+        catch (JsonProcessingException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid coordinates");
         }
 
@@ -49,7 +44,30 @@ public class RESTController {
             double y = Math.pow((pos1.getLat() - pos2.getLat()), 2);
             double distance = Math.sqrt(x + y);
 
-            return ResponseEntity.ok(distance + "");
+            String distanceString = String.valueOf(distance);
+
+            return ResponseEntity.ok(distanceString);
+        }
+    }
+
+
+    @PostMapping("/isClose")
+    public ResponseEntity<Boolean> isClose(@RequestBody String longLatPair){
+
+        String distance = getDistanceTo(longLatPair).getBody();
+
+        if (distance.equals("Invalid coordinates")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+        else {
+
+            double distanceNumber = parseDouble(distance);
+
+            if (distanceNumber < 0.00015) {
+                return ResponseEntity.ok(true);
+            } else {
+                return ResponseEntity.ok(false);
+            }
         }
     }
 }
