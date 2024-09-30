@@ -10,6 +10,16 @@
   <name>PizzaDronz</name>
   <url>http://maven.apache.org</url>
 
+  <build>
+    <finalName>pizza-dronz</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
