@@ -35,14 +35,14 @@ public class RESTController {
         LongLatPair positions;
 
         if (longLatPair.isEmpty()){ //validating if body is empty
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
 
         try { //validating body is in correct format
             positions = mapper.readValue(longLatPair, LongLatPair.class);
         }
         catch (JsonProcessingException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
 
         LongLat pos1 = positions.getPos1();
@@ -51,7 +51,7 @@ public class RESTController {
         //semantic validation
         if (pos1 == null || pos2 == null || pos1.getLng() > 180 || pos2.getLng() > 180 || pos1.getLng() < -180 ||
         pos2.getLng() < -180 || pos1.getLat() < -90 || pos2.getLat() < -90 || pos1.getLat() > 90 || pos2.getLat() > 90) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } else {
             double x = Math.pow((pos1.getLng() - pos2.getLng()), 2); //calculate distance
             double y = Math.pow((pos1.getLat() - pos2.getLat()), 2);
@@ -84,6 +84,7 @@ public class RESTController {
         }
     }
 
+
     @PostMapping("/nextPosition")
     public ResponseEntity<String> nextPosition(@RequestBody String startPosAngle) throws JsonProcessingException {
 
@@ -94,7 +95,7 @@ public class RESTController {
                                             270.0, 292.5, 315.0, 337.5, 999.0};
 
         if (startPosAngle.isEmpty()) { //checking if input string is empty
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
         else {
             try { //checking for correct JSON format
