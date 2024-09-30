@@ -167,7 +167,7 @@ public class RESTController {
             double lng = position.getLng();
             double lat = position.getLat();
 
-            boolean response = regionPoly.contains(lng, lat);
+            boolean response = regionPoly.contains(lng, lat); //checking if point is in polygon
             return ResponseEntity.ok(response);
 
         }
