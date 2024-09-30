@@ -34,7 +34,7 @@ public class RESTController {
 
         LongLatPair positions;
 
-        if (longLatPair.isEmpty()){ //validating if body is empty
+        if (longLatPair == null || longLatPair.isEmpty()){ //validating if body is empty
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
 
@@ -69,18 +69,15 @@ public class RESTController {
         //uses getDistanceTo validation
         String distance = getDistanceTo(longLatPair).getBody();
 
-        if (distance.isEmpty() || distance.equals("")){ //checking if string is empty
+        if (distance == null || distance.isEmpty()){ //checking if string is empty
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
         else {
 
             double distanceNumber = parseDouble(distance);
+            boolean isClose = distanceNumber < 0.00015;
 
-            if (distanceNumber < 0.00015) {
-                return ResponseEntity.ok(true);
-            } else {
-                return ResponseEntity.ok(false);
-            }
+            return ResponseEntity.ok(isClose);
         }
     }
 
@@ -94,7 +91,7 @@ public class RESTController {
         Double[] directions = new Double[]{0.0, 22.5, 45.0, 67.5, 90.0, 112.5, 135.0, 157.5, 180.0, 202.5, 225.0, 247.5,
                                             270.0, 292.5, 315.0, 337.5, 999.0};
 
-        if (startPosAngle.isEmpty()) { //checking if input string is empty
+        if (startPosAngle == null || startPosAngle.isEmpty()) { //checking if input string is empty
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
         else {
@@ -133,7 +130,7 @@ public class RESTController {
         Path2D.Double regionPoly = new Path2D.Double();
         PosRegion posRegion;
 
-        if (posRegionStr.isEmpty()) { //checking for empty input
+        if (posRegionStr == null || posRegionStr.isEmpty()) { //checking for empty input
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
         else{
