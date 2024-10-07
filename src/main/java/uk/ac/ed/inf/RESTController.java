@@ -12,13 +12,13 @@ import org.springframework.web.bind.annotation.RestController;
 import uk.ac.ed.inf.dataTypes.*;
 
 import java.awt.geom.Path2D;
+import java.awt.geom.Rectangle2D;
 import java.lang.Math;
 import java.util.Arrays;
 import java.util.List;
 
 import static java.lang.Double.parseDouble;
-import static uk.ac.ed.inf.SystemConstants.DF;
-import static uk.ac.ed.inf.SystemConstants.MOVEMENT;
+import static uk.ac.ed.inf.SystemConstants.*;
 
 @RestController
 public class RESTController {
@@ -165,7 +165,13 @@ public class RESTController {
             double lng = position.getLng();
             double lat = position.getLat();
 
-            boolean response = regionPoly.contains(lng, lat); //checking if point is in polygon
+            boolean contains = regionPoly.contains(lng, lat); //checking if point is in polygon
+
+            Rectangle2D rect = new Rectangle2D.Double(lng - TOLERANCE, lat - TOLERANCE, 2 * TOLERANCE, 2 * TOLERANCE);
+            boolean onBoundary = regionPoly.intersects(rect); //checking if point is on boundary
+
+            boolean response = contains || onBoundary;
+
             return ResponseEntity.ok(response);
 
         }
