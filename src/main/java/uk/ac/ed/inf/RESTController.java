@@ -14,7 +14,6 @@ import uk.ac.ed.inf.dataTypes.*;
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.lang.Math;
-import java.util.Arrays;
 import java.util.List;
 
 import static java.lang.Double.parseDouble;
@@ -88,8 +87,6 @@ public class RESTController {
         PosAngle startPos;
         double latChange;
         double lngChange;
-        Double[] directions = new Double[]{0.0, 22.5, 45.0, 67.5, 90.0, 112.5, 135.0, 157.5, 180.0, 202.5, 225.0, 247.5,
-                                            270.0, 292.5, 315.0, 337.5, 999.0};
 
         if (startPosAngle == null || startPosAngle.isEmpty()) { //checking if input string is empty
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
@@ -105,11 +102,11 @@ public class RESTController {
             LongLat position = startPos.getStart();
 
             //validating position
-            if (!Arrays.asList(directions).contains(angle) || position.getLng() > 180 || position.getLng() < -180 ||
+            if (angle < 0 || angle > 360 || position.getLng() > 180 || position.getLng() < -180 ||
             position.getLat() > 90 || position.getLat() < -90){
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
             }
-            else if (angle != 999.0) {
+            else{
                 latChange = MOVEMENT * Math.cos(Math.toRadians(angle)); //calculating movement in lat and long
                 lngChange = MOVEMENT * Math.sin(Math.toRadians(angle));
 
