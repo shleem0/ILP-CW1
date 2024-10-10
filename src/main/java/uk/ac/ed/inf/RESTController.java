@@ -66,7 +66,7 @@ public class RESTController {
     }
 
 
-    @PostMapping("/isClose")
+    @PostMapping("/isCloseTo")
     public ResponseEntity<Boolean> isClose(@RequestBody String longLatPair){
         //uses getDistanceTo validation
         String distance = getDistanceTo(longLatPair).getBody();
@@ -124,17 +124,16 @@ public class RESTController {
 
 
     @PostMapping("/isInRegion")
-    public ResponseEntity<Boolean> isInRegion(@RequestBody String posRegionStr){
+    public ResponseEntity<Boolean> isInRegion(@RequestBody String posRegionStr) {
 
         Path2D.Double regionPoly = new Path2D.Double();
         PosRegion posRegion;
 
         if (posRegionStr == null || posRegionStr.isEmpty()) { //checking for empty input
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-        }
-        else{
+        } else {
 
-            try{ //checking for correct JSON format
+            try { //checking for correct JSON format
                 posRegion = mapper.readValue(posRegionStr, PosRegion.class);
             } catch (JsonProcessingException e) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
@@ -144,40 +143,43 @@ public class RESTController {
             Region region = posRegion.getRegion();
             List<LongLat> vertices = region.getVertices();
 
-            if(vertices.size() < 3){ //verifying vertices can close shape
+            //verifying vertices can close shape
+            if (vertices.size() < 3 || (!vertices.get(0).getLat().equals(vertices.get(vertices.size() - 1).getLat())
+                    && !vertices.get(0).getLng().equals(vertices.get(vertices.size() - 1).getLng()))){
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-            }
+            } else {
 
-            regionPoly.moveTo(vertices.get(0).getLng(), vertices.get(0).getLat()); //moving to start of polygon
+                regionPoly.moveTo(vertices.get(0).getLng(), vertices.get(0).getLat()); //moving to start of polygon
 
-            for (int i = 1; i < vertices.size(); i++) { //validating vertex positions and adding them to the region if valid
-                if (longLatValidator(vertices.get(i).getLng(), vertices.get(i).getLat())){
+                for (int i = 1; i < vertices.size(); i++) { //validating vertex positions and adding them to the region if valid
+                    if (longLatValidator(vertices.get(i).getLng(), vertices.get(i).getLat())) {
+                        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+                    } else {
+                        regionPoly.lineTo(vertices.get(i).getLng(), vertices.get(i).getLat());
+                    }
+                }
+                regionPoly.closePath();
+
+                Double lng = position.getLng();
+                Double lat = position.getLat();
+
+                if (longLatValidator(lng, lat)) {
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+                } else {
+                    boolean contains = regionPoly.contains(lng, lat); //checking if point is in polygon
+
+                    Rectangle2D rect = new Rectangle2D.Double(lng - TOLERANCE, lat - TOLERANCE, 2 * TOLERANCE, 2 * TOLERANCE);
+                    boolean onBoundary = regionPoly.intersects(rect); //checking if point is on boundary
+
+                    boolean response = contains || onBoundary;
+
+                    return ResponseEntity.ok(response);
                 }
-                else {
-                    regionPoly.lineTo(vertices.get(i).getLng(), vertices.get(i).getLat());
-                }
-            }
-            regionPoly.closePath();
-
-            Double lng = position.getLng();
-            Double lat = position.getLat();
-
-            if (longLatValidator(lng, lat)) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-            }
-            else {
-                boolean contains = regionPoly.contains(lng, lat); //checking if point is in polygon
-
-                Rectangle2D rect = new Rectangle2D.Double(lng - TOLERANCE, lat - TOLERANCE, 2 * TOLERANCE, 2 * TOLERANCE);
-                boolean onBoundary = regionPoly.intersects(rect); //checking if point is on boundary
-
-                boolean response = contains || onBoundary;
-
-                return ResponseEntity.ok(response);
             }
         }
     }
+
+    //validator methods
 
     public boolean longLatValidator(Double lng, Double lat){
 
