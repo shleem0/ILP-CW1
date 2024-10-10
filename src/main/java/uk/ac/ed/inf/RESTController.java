@@ -144,8 +144,8 @@ public class RESTController {
             List<LongLat> vertices = region.getVertices();
 
             //verifying vertices can close shape
-            if (vertices.size() < 3 || (!vertices.get(0).getLat().equals(vertices.get(vertices.size() - 1).getLat())
-                    && !vertices.get(0).getLng().equals(vertices.get(vertices.size() - 1).getLng()))){
+            if (vertices.size() < 3 || !vertices.get(0).getLat().equals(vertices.get(vertices.size() - 1).getLat())
+                    || !vertices.get(0).getLng().equals(vertices.get(vertices.size() - 1).getLng())){
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
             } else {
 
