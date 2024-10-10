@@ -29,36 +29,41 @@ public class RESTController {
     }
 
     @PostMapping("/distanceTo")
-    public ResponseEntity<String> getDistanceTo(@RequestBody String longLatPair){
+    public ResponseEntity<String> getDistanceTo(@RequestBody String longLatPair) {
 
         LongLatPair positions;
 
-        if (longLatPair == null || longLatPair.isEmpty()){ //validating if body is empty
+        if (longLatPair == null || longLatPair.isEmpty()) { //validating if body is empty
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
 
         try { //validating body is in correct format
             positions = mapper.readValue(longLatPair, LongLatPair.class);
-        }
-        catch (JsonProcessingException e) {
+        } catch (JsonProcessingException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
 
-        LongLat pos1 = positions.getPos1();
-        LongLat pos2 = positions.getPos2();
-
-        //semantic validation
-        if (pos1 == null || pos2 == null || pos1.getLng() > 180 || pos2.getLng() > 180 || pos1.getLng() < -180 ||
-        pos2.getLng() < -180 || pos1.getLat() < -90 || pos2.getLat() < -90 || pos1.getLat() > 90 || pos2.getLat() > 90) {
+        if (positions.getPos1() == null || positions.getPos2() == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } else {
-            double x = Math.pow((pos1.getLng() - pos2.getLng()), 2); //calculate distance
-            double y = Math.pow((pos1.getLat() - pos2.getLat()), 2);
-            double distance = Math.sqrt(x + y);
 
-            String distanceString = String.valueOf(distance);
+            LongLat pos1 = positions.getPos1();
+            LongLat pos2 = positions.getPos2();
 
-            return ResponseEntity.ok(distanceString);
+            //semantic validation
+            if (pos1 == null || pos2 == null || pos1.getLng() == null || pos1.getLat() == null || pos2.getLng() == null
+                    || pos2.getLat() == null || pos1.getLng() > 180 || pos2.getLng() > 180 || pos1.getLng() < -180 ||
+                    pos2.getLng() < -180 || pos1.getLat() < -90 || pos2.getLat() < -90 || pos1.getLat() > 90 || pos2.getLat() > 90) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            } else {
+                double x = Math.pow((pos1.getLng() - pos2.getLng()), 2); //calculate distance
+                double y = Math.pow((pos1.getLat() - pos2.getLat()), 2);
+                double distance = Math.sqrt(x + y);
+
+                String distanceString = String.valueOf(distance);
+
+                return ResponseEntity.ok(distanceString);
+            }
         }
     }
 
@@ -98,12 +103,12 @@ public class RESTController {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
             }
 
-            double angle = startPos.getAngle();
+            Double angle = startPos.getAngle();
             LongLat position = startPos.getStart();
 
             //validating position
-            if (angle < 0 || angle > 360 || position.getLng() > 180 || position.getLng() < -180 ||
-            position.getLat() > 90 || position.getLat() < -90){
+            if (angle == null || angle < 0 || angle > 360 || position.getLng() == null || position.getLat() == null ||
+                    position.getLng() > 180 || position.getLng() < -180 || position.getLat() > 90 || position.getLat() < -90){
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
             }
             else{
@@ -149,8 +154,7 @@ public class RESTController {
             regionPoly.moveTo(vertices.get(0).getLng(), vertices.get(0).getLat()); //moving to start of polygon
 
             for (int i = 1; i < vertices.size(); i++) { //validating vertex positions and adding them to the region if valid
-                if (vertices.get(i).getLng() > 180 || vertices.get(i).getLng() < -180 || vertices.get(i).getLat() < -90
-                        || vertices.get(i).getLat() > 90) {
+                if (vertices.get(i).getLng() == null || vertices.get(i).getLat() == null || vertices.get(i).getLng() > 180 || vertices.get(i).getLng() < -180 || vertices.get(i).getLat() < -90 || vertices.get(i).getLat() > 90) {
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
                 }
                 else {
@@ -159,18 +163,22 @@ public class RESTController {
             }
             regionPoly.closePath();
 
-            double lng = position.getLng();
-            double lat = position.getLat();
+            Double lng = position.getLng();
+            Double lat = position.getLat();
 
-            boolean contains = regionPoly.contains(lng, lat); //checking if point is in polygon
+            if (lng == null || lat == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            }
+            else {
+                boolean contains = regionPoly.contains(lng, lat); //checking if point is in polygon
 
-            Rectangle2D rect = new Rectangle2D.Double(lng - TOLERANCE, lat - TOLERANCE, 2 * TOLERANCE, 2 * TOLERANCE);
-            boolean onBoundary = regionPoly.intersects(rect); //checking if point is on boundary
+                Rectangle2D rect = new Rectangle2D.Double(lng - TOLERANCE, lat - TOLERANCE, 2 * TOLERANCE, 2 * TOLERANCE);
+                boolean onBoundary = regionPoly.intersects(rect); //checking if point is on boundary
 
-            boolean response = contains || onBoundary;
+                boolean response = contains || onBoundary;
 
-            return ResponseEntity.ok(response);
-
+                return ResponseEntity.ok(response);
+            }
         }
     }
 }

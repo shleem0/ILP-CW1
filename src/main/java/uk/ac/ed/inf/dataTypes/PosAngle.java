@@ -3,13 +3,13 @@ package uk.ac.ed.inf.dataTypes;
 public class PosAngle{
 
     public LongLat start;
-    public double angle;
+    public Double angle;
 
     public LongLat getStart(){
         return start;
     }
 
-    public double getAngle(){
+    public Double getAngle(){
         return angle;
     }
 }
