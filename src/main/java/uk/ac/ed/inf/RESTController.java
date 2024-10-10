@@ -33,7 +33,7 @@ public class RESTController {
 
         LongLatPair positions;
 
-        if (longLatPair == null || longLatPair.isEmpty()) { //validating if body is empty
+        if (inputStringValidator(longLatPair)) { //validating if body is empty
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
 
@@ -51,9 +51,7 @@ public class RESTController {
             LongLat pos2 = positions.getPos2();
 
             //semantic validation
-            if (pos1 == null || pos2 == null || pos1.getLng() == null || pos1.getLat() == null || pos2.getLng() == null
-                    || pos2.getLat() == null || pos1.getLng() > 180 || pos2.getLng() > 180 || pos1.getLng() < -180 ||
-                    pos2.getLng() < -180 || pos1.getLat() < -90 || pos2.getLat() < -90 || pos1.getLat() > 90 || pos2.getLat() > 90) {
+            if (longLatValidator(pos1.getLng(), pos1.getLat()) || longLatValidator(pos2.getLng(), pos2.getLat())) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
             } else {
                 double x = Math.pow((pos1.getLng() - pos2.getLng()), 2); //calculate distance
@@ -73,7 +71,7 @@ public class RESTController {
         //uses getDistanceTo validation
         String distance = getDistanceTo(longLatPair).getBody();
 
-        if (distance == null || distance.isEmpty()){ //checking if string is empty
+        if (inputStringValidator(distance)){ //checking if string is empty
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
         else {
@@ -93,7 +91,7 @@ public class RESTController {
         double latChange;
         double lngChange;
 
-        if (startPosAngle == null || startPosAngle.isEmpty()) { //checking if input string is empty
+        if (inputStringValidator(startPosAngle)) { //checking if input string is empty
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
         else {
@@ -107,8 +105,7 @@ public class RESTController {
             LongLat position = startPos.getStart();
 
             //validating position
-            if (angle == null || angle < 0 || angle > 360 || position.getLng() == null || position.getLat() == null ||
-                    position.getLng() > 180 || position.getLng() < -180 || position.getLat() > 90 || position.getLat() < -90){
+            if (angle == null || angle < 0 || angle > 360 || longLatValidator(position.getLng(), position.getLat())){
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
             }
             else{
@@ -154,7 +151,7 @@ public class RESTController {
             regionPoly.moveTo(vertices.get(0).getLng(), vertices.get(0).getLat()); //moving to start of polygon
 
             for (int i = 1; i < vertices.size(); i++) { //validating vertex positions and adding them to the region if valid
-                if (vertices.get(i).getLng() == null || vertices.get(i).getLat() == null || vertices.get(i).getLng() > 180 || vertices.get(i).getLng() < -180 || vertices.get(i).getLat() < -90 || vertices.get(i).getLat() > 90) {
+                if (longLatValidator(vertices.get(i).getLng(), vertices.get(i).getLat())){
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
                 }
                 else {
@@ -166,7 +163,7 @@ public class RESTController {
             Double lng = position.getLng();
             Double lat = position.getLat();
 
-            if (lng == null || lat == null) {
+            if (longLatValidator(lng, lat)) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
             }
             else {
@@ -180,6 +177,16 @@ public class RESTController {
                 return ResponseEntity.ok(response);
             }
         }
+    }
+
+    public boolean longLatValidator(Double lng, Double lat){
+
+        return lng == null || lat == null || lng < -180 || lng > 180 || lat < -90 || lat > 90;
+
+    }
+
+    public boolean inputStringValidator(String inputString){
+        return inputString == null || inputString.isEmpty();
     }
 }
 
