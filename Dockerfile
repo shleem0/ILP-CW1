@@ -10,5 +10,5 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:18-jre-alpine
 WORKDIR /app
 COPY --from=build /app/target/pizza-dronz.jar app.jar
-EXPOSE 80
+EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
