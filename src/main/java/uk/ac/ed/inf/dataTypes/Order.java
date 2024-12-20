@@ -17,6 +17,10 @@ public class Order {
     public CreditCard creditCardInformation;
 
 
+    public String getOrderDate() {
+        return orderDate;
+    }
+
     public OrderStatus getOrderStatus() {
         return orderStatus;
     }
@@ -25,12 +29,12 @@ public class Order {
         return orderValidationCode;
     }
 
-    public CreditCard getCreditCardInformation() {
-        return creditCardInformation;
+    public List<Pizza> getPizzasInOrder() {
+        return pizzasInOrder;
     }
 
-    public String getOrderDate() {
-        return orderDate;
+    public CreditCard getCreditCardInformation() {
+        return creditCardInformation;
     }
 
     public OrderValidationCode validatePizzas(List<Restaurant> restaurants, LocalDate orderDate) {
@@ -39,11 +43,14 @@ public class Order {
         List<Pizza> menu;
         List<String> menuPizzaNames;
         List<String> openingDays;
-        String prevResCode = "";
+        String resName;
+        String prevResName = null;
 
         if (pizzasInOrder.isEmpty()) {
+            System.out.println("Empty");
             return OrderValidationCode.EMPTY_ORDER;
         } else if (pizzasInOrder.size() > 4) {
+            System.out.println("Max pizzas");
             return OrderValidationCode.MAX_PIZZA_COUNT_EXCEEDED;
         } else {
 
@@ -51,39 +58,44 @@ public class Order {
                 pizzaFound = false;
                 sum += pizza.getPrice();
 
-                String pizzaResCode = pizza.getName().split(" ")[0].substring(0, 2);
-
-                if(pizzaResCode.charAt(0) != 'R') {
-                    return OrderValidationCode.PIZZA_NOT_DEFINED;
-                }
-                else if (!pizzaResCode.equals(prevResCode) && !prevResCode.isEmpty()) {
-                    return OrderValidationCode.PIZZA_FROM_MULTIPLE_RESTAURANTS;
-                }
-
-                prevResCode = pizzaResCode;
-
                 for (Restaurant restaurant : restaurants) {
 
                     menu = restaurant.getMenu();
+                    resName = restaurant.getName();
                     menuPizzaNames = menu.stream().map(Pizza::getName).toList();
 
                     if (menuPizzaNames.contains(pizza.getName())) {
                         pizzaFound = true;
+
                         DayOfWeek day = orderDate.getDayOfWeek();
                         openingDays = restaurant.getDays();
 
                         if (!openingDays.contains(day.toString().toUpperCase())) {
+                            System.out.println("Res closed");
                             return OrderValidationCode.RESTAURANT_CLOSED;
                         }
+
                         if (pizza.getPrice() != menu.get(menuPizzaNames.indexOf(pizza.getName())).getPrice()) {
+                            System.out.println("Invalid price");
                             return OrderValidationCode.PRICE_FOR_PIZZA_INVALID;
                         }
+
+                        if (!resName.equals(prevResName) && prevResName != null){
+                            System.out.println("Multiple res");
+                            return OrderValidationCode.PIZZA_FROM_MULTIPLE_RESTAURANTS;
+                        }
+                        else{
+                            prevResName = resName;
+                        }
+
                     }
                 }
                 if (!pizzaFound) {
+                    System.out.println("Undefined pizza");
                     return OrderValidationCode.PIZZA_NOT_DEFINED;
                 }
             }
+
             if (sum + 100 != priceTotalInPence) {
                 return OrderValidationCode.TOTAL_INCORRECT;
             }

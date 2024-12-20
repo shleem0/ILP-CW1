@@ -14,16 +14,15 @@ import uk.ac.ed.inf.dataTypes.*;
 
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
+import java.lang.Math;
+import java.io.InputStreamReader;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.lang.Math;
-import java.net.HttpURLConnection;
-import java.io.InputStreamReader;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.net.URL;
+import java.net.HttpURLConnection;
 
 import static java.lang.Double.parseDouble;
 import static uk.ac.ed.inf.SystemConstants.*;
@@ -48,17 +47,17 @@ public class RESTController {
         LongLatPair positions;
 
         if (validator.inputStringValidator(longLatPair)) { //validating if body is empty
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid input");
         }
 
         try { //validating body is in correct format
             positions = mapper.readValue(longLatPair, LongLatPair.class);
         } catch (JsonProcessingException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Cannot map JSON to object");
         }
 
         if (positions.getPos1() == null || positions.getPos2() == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Missing position(s)");
         } else {
 
             LongLat pos1 = positions.getPos1();
@@ -66,7 +65,7 @@ public class RESTController {
 
             //semantic validation
             if (validator.longLatValidator(pos1.getLng(), pos1.getLat()) || validator.longLatValidator(pos2.getLng(), pos2.getLat())) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Semantically invalid");
             } else {
                 double x = Math.pow((pos1.getLng() - pos2.getLng()), 2); //calculate distance
                 double y = Math.pow((pos1.getLat() - pos2.getLat()), 2);
@@ -108,13 +107,13 @@ public class RESTController {
         double lngChange;
 
         if (validator.inputStringValidator(startPosAngle)) { //checking if input string is empty
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Input string is empty");
         }
         else {
             try { //checking for correct JSON format
                 startPos = mapper.readValue(startPosAngle, PosAngle.class);
             } catch (JsonProcessingException e) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Cannot map JSON to object");
             }
 
             Double angle = startPos.getAngle();
@@ -122,15 +121,15 @@ public class RESTController {
 
             //validating position
             if (angle == null || angle < 0 || angle > 360 || validator.longLatValidator(position.getLng(), position.getLat())){
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid position");
             }
             else{
                 latChange = MOVEMENT * Math.cos(Math.toRadians(angle)); //calculating movement in lat and long
                 lngChange = MOVEMENT * Math.sin(Math.toRadians(angle));
 
-                //adjusting position (and formatting)
-                position.setLat(parseDouble(DF.format(position.getLat() + latChange)));
-                position.setLng(parseDouble(DF.format(position.getLng() + lngChange)));
+                //adjusting position
+                position.setLat(position.getLat() + latChange);
+                position.setLng(position.getLng() + lngChange);
             }
 
             String nextPosition = mapper.writeValueAsString(position);
@@ -206,14 +205,15 @@ public class RESTController {
         OrderValidationResult result = new OrderValidationResult();
         result.setValidationCode(OrderValidationCode.UNDEFINED);
         result.setStatus(OrderStatus.UNDEFINED);
-        HttpURLConnection conn;
+
+        StringBuilder resBody = getDataFromREST("https://ilp-rest-2024.azurewebsites.net/restaurants");
+        List<Restaurant> restaurants = mapper.readValue(resBody.toString(), new TypeReference<List<Restaurant>>(){});
 
         //check input isn't null
         if (validator.inputStringValidator(orderStr)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } else {
-
-            try { //try read order json into order class
+            try { //try read json into order class
                 order = mapper.readValue(orderStr, Order.class);
             } catch (JsonProcessingException e) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
@@ -225,31 +225,8 @@ public class RESTController {
                 result.setValidationCode(order.getOrderValidationCode());
             }
             else {
-                try { //get restaurants from azurewebsites
-                    URL restaurantsURL = new URL("https://ilp-rest-2024.azurewebsites.net/restaurants");
-                    conn = (HttpURLConnection) restaurantsURL.openConnection();
-                    conn.setRequestMethod("GET");
-                    conn.connect();
 
-                    if (conn.getResponseCode() != 200) { //bad request if it can't connect
-                        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-                    }
-                } catch (Exception e) {
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-                }
-
-                //read response body as string
-                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                StringBuilder body = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    body.append(line);
-                }
-                reader.close();
-
-                //store response string as list of restaurants
-                List<Restaurant> restaurants = mapper.readValue(body.toString(), new TypeReference<List<Restaurant>>(){});
-                List<OrderValidationCode> codes = new ArrayList<OrderValidationCode>();
+                List<OrderValidationCode> codes = new ArrayList<>();
 
                 LocalDate orderDate = LocalDate.parse(order.getOrderDate());
                 YearMonth orderDateYM = YearMonth.from(orderDate);
@@ -270,19 +247,323 @@ public class RESTController {
                 if (result.getOrderValidationCode() == OrderValidationCode.UNDEFINED) {
                     result.setValidationCode(OrderValidationCode.NO_ERROR);
                     result.setStatus(OrderStatus.VALID);
+                    System.out.println("Valid order");
                 }
             }
         }
         return ResponseEntity.ok(result);
     }
 
+
+
     @PostMapping("/calcDeliveryPath")
-    public ResponseEntity<List<LongLat>> calcDeliveryPath (@RequestBody String orderAndPos){
+    public ResponseEntity<List<LongLat>> calcDeliveryPath (@RequestBody String orderStr) throws IOException {
 
-        return null;
 
+        Order order;
+        //get data from REST service
+        StringBuilder resBody = getDataFromREST("https://ilp-rest-2024.azurewebsites.net/restaurants");
+        List<Restaurant> restaurants = mapper.readValue(resBody.toString(), new TypeReference<List<Restaurant>>() {});
+
+        StringBuilder centralBody = getDataFromREST("https://ilp-rest-2024.azurewebsites.net/centralArea");
+        Region centralArea = mapper.readValue(centralBody.toString(), Region.class);
+
+        StringBuilder noFlyBody = getDataFromREST("https://ilp-rest-2024.azurewebsites.net/noFlyZones");
+        List<Region> noFlyZones = mapper.readValue(noFlyBody.toString(), new TypeReference<List<Region>>() {});
+
+        LongLat appleton = new LongLat();
+        appleton.setLng(APPLETON_LNG);
+        appleton.setLat(APPLETON_LAT);
+
+        //ensure input is not null and valid object format
+        if (validator.inputStringValidator(orderStr)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } else {
+            try {
+                order = mapper.readValue(orderStr, Order.class);
+            } catch (Exception e) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            }
+        }
+
+        //check order is valid
+        OrderValidationResult orderValidation = validateOrder(orderStr).getBody();
+        if (orderValidation.getOrderStatus() != OrderStatus.VALID) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+
+        //get restaurant code and position
+
+        Restaurant orderRestaurant = getOrderRestaurant(order, restaurants);
+        LongLat resPos = orderRestaurant.getLocation();
+
+        List<LongLat> path = a_Star(appleton, resPos, centralArea, noFlyZones);
+
+        if (path == null) {
+            //no path found
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+        return ResponseEntity.ok(path);
     }
 
+
+
+    @PostMapping("/calcDeliveryPathAsGeoJson")
+    public ResponseEntity<GeoJSON> calcDeliveryPathAsGeoJson (@RequestBody String orderStr) throws IOException {
+
+        //validate path
+        List<LongLat> path = calcDeliveryPath(orderStr).getBody();
+        if (path == null){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+
+        //initialise objects for geojson
+        GeoJSON geoJSON = new GeoJSON();
+        List<Feature> features = new ArrayList<>();
+        Property properties = new Property();
+        Feature feature = new Feature();
+        Geometry geometry = new Geometry();
+
+        feature.setProperties(properties);
+        features.add(feature);
+        geoJSON.setFeatures(features);
+
+        List<List<Double>> geometryPoints = new ArrayList<>();
+
+        for (LongLat point : path){
+            geometryPoints.add(Arrays.asList(point.getLng(), point.getLat()));
+        }
+
+        geometry.setCoordinates(geometryPoints);
+        feature.setGeometry(geometry);
+
+        return ResponseEntity.ok(geoJSON);
+    }
+
+
+
+    public Restaurant getOrderRestaurant(Order order, List<Restaurant> restaurants){
+        String pizza = order.getPizzasInOrder().get(0).getName();
+        List<String> menuPizzaNames;
+
+        for (Restaurant restaurant : restaurants) {
+            //get all pizza names from menu
+            menuPizzaNames = restaurant.getMenu().stream().map(Pizza::getName).toList();
+
+            if (menuPizzaNames.contains(pizza)) {
+                return restaurant;
+            }
+        }
+        return null;
+    }
+
+
+
+    public List<Node> generateSuccessors(Node node, Region central, List<Region> noFly) throws JsonProcessingException {
+
+        List<Node> successors = new ArrayList<>();
+
+        PosRegion centralCompareOld = new PosRegion();
+        centralCompareOld.setRegion(central);
+
+        PosRegion centralCompareNew = new PosRegion();
+        centralCompareNew.setRegion(central);
+
+        PosRegion noFlyCompare = new PosRegion();
+        boolean noFlyBool;
+        LongLat parentPos = new LongLat();
+
+        //storing current's parent to ensure it isn't remade
+        if (node.getParent() != null) {
+            parentPos.setLng(node.getParent().getPos().getLng());
+            parentPos.setLat(node.getParent().getPos().getLat());
+        }
+
+        for (Double angle : ANGLES) {
+
+            noFlyBool = false;
+
+            if (angle == 999.0){
+                break;
+            }
+
+            PosAngle posAngle = new PosAngle();
+            posAngle.setAngle(angle);
+            posAngle.setStart(node.getPos());
+
+            //get position of successors
+            String posString = nextPosition(mapper.writeValueAsString(posAngle)).getBody();
+            LongLat pos = mapper.readValue(posString, LongLat.class);
+
+            centralCompareOld.setPosition(node.getPos());
+            centralCompareNew.setPosition(pos);
+
+            //don't create successor if current is in central and successor is not
+            if (Boolean.TRUE.equals(isInRegion(mapper.writeValueAsString(centralCompareOld)).getBody()) &&
+                    Boolean.FALSE.equals(isInRegion(mapper.writeValueAsString(centralCompareNew)).getBody())) {
+
+                System.out.println("New neighbour leaves central");
+                continue;
+            }
+
+            for (Region nfz : noFly) {
+                noFlyCompare.setRegion(nfz);
+                noFlyCompare.setPosition(pos);
+
+                    if (Boolean.TRUE.equals(isInRegion(mapper.writeValueAsString(noFlyCompare)).getBody())) {
+                        noFlyBool = true;
+                        break;
+                    }
+                }
+
+            //do not create successor if it is in NFZ
+            if (noFlyBool){
+                System.out.println("New neighbour in NFZ");
+                continue;
+            }
+
+            //do not create successor if it is in current's parent's position
+            if (node.getParent() != null && parentPos.getLng().equals(pos.getLng())
+                    && parentPos.getLat().equals(pos.getLat())){
+                continue;
+            }
+
+            Node successor = new Node();
+            successor.setPos(pos);
+            successor.setParent(node);
+
+            successors.add(successor);
+            }
+        return successors;
+    }
+
+
+
+    public List<LongLat> a_Star(LongLat appleton, LongLat resPos, Region centralArea, List<Region> noFlyZones) throws JsonProcessingException {
+        Set<Node> closed = new HashSet<>() {};
+        //priority queue for selecting next node to expand
+        PriorityQueue<Node> open = new PriorityQueue<>(Comparator.comparingDouble(Node::getF));
+
+        double g;
+        double h;
+        int counter = 1;
+
+        LongLatPair distanceChecker = new LongLatPair();
+        distanceChecker.setPos2(appleton);
+
+        Node start = new Node();
+        Node current;
+
+        start.setPos(resPos);
+        start.setG(0);
+        start.setF(0, 0);
+        open.add(start);
+
+        List<Node> successors;
+        List<LongLat> path;
+
+        while (!open.isEmpty()) {
+
+            current = open.poll();
+            successors = generateSuccessors(current, centralArea, noFlyZones);
+
+            System.out.println("Iteration: " + counter);
+
+            for (Node successor : successors) {
+
+                distanceChecker.setPos1(successor.getPos());
+
+
+                //return path if at goal
+                if (isClose(mapper.writeValueAsString(distanceChecker)).getBody()) {
+                    path = getPath(successor);
+                    return path;
+                } else {
+                    //calculate f for successor
+                    g = successor.getParent().getG() + MOVEMENT;
+                    h = parseDouble(getDistanceTo(mapper.writeValueAsString(distanceChecker)).getBody());
+
+                    successor.setG(g);
+                    successor.setF(g, h);
+
+
+                    if (skipNode(successor, open) || skipNode(successor, closed)){
+                        continue;
+                    }
+                    open.add(successor);
+                }
+            }
+            closed.add(current);
+            counter += 1;
+        }
+        return null;
+    }
+
+
+    //skips successor if it already exists with a lower f score
+    public boolean skipNode(Node successor, Collection<Node> list){
+        for (Node node : list) {
+            LongLat pos = node.getPos();
+
+            if (pos.getLat().equals(successor.getPos().getLat()) && pos.getLng().equals(successor.getPos().getLng()) &&
+                    node.getF() <= successor.getF()){
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    public List<LongLat> getPath (Node goal){
+
+        List<LongLat> path = new ArrayList<>();
+        path.add(goal.getPos());
+
+        Node parent = goal.getParent();
+
+        //follows path of parents until start reached
+        while (parent != null){
+
+            path.add(parent.getPos());
+            parent = parent.getParent();
+        }
+
+        //hovers added at both ends
+        path.add(path.get(path.size() - 1));
+        Collections.reverse(path);
+        path.add(path.get(path.size() - 1));
+
+        return path;
+    }
+
+
+
+    public StringBuilder getDataFromREST(String urlStr) throws IOException {
+
+        HttpURLConnection conn;
+
+        try { //get info from Rest
+            URL queryURL = new URL(urlStr);
+            conn = (HttpURLConnection) queryURL.openConnection();
+            conn.setRequestMethod("GET");
+            conn.connect();
+
+            if (conn.getResponseCode() != 200) { //bad request if it can't connect
+                return null;
+            }
+        } catch (Exception e) {
+            return null;
+        }
+
+        //read response body as string
+        BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+        StringBuilder body = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            body.append(line);
+        }
+        reader.close();
+
+        return body;
+    }
 }
-
-

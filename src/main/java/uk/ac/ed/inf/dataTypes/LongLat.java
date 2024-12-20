@@ -21,4 +21,15 @@ public class LongLat{
     public void setLat(Double lat){
         this.lat = lat;
     }
+
+    @Override
+    public boolean equals(Object obj){
+        if(obj instanceof LongLat){
+
+            if (this.lng.equals(((LongLat)obj).lng) && this.lat.equals(((LongLat) obj).lat)){
+                return true;
+            }
+        }
+        return false;
+    }
 }

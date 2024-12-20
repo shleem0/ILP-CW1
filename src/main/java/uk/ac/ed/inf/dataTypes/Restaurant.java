@@ -14,6 +14,10 @@ public class Restaurant {
         return name;
     }
 
+    public LongLat getLocation(){
+        return location;
+    }
+
     public List<Pizza> getMenu(){
         return menu;
     }
