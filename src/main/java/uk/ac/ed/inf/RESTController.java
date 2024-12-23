@@ -293,7 +293,6 @@ public class RESTController {
         }
 
         //get restaurant code and position
-
         Restaurant orderRestaurant = getOrderRestaurant(order, restaurants);
         LongLat resPos = orderRestaurant.getLocation();
 
@@ -342,6 +341,8 @@ public class RESTController {
 
 
 
+//helper/non-main functions--------------------------------------
+
     public Restaurant getOrderRestaurant(Order order, List<Restaurant> restaurants){
         String pizza = order.getPizzasInOrder().get(0).getName();
         List<String> menuPizzaNames;
@@ -355,6 +356,88 @@ public class RESTController {
             }
         }
         return null;
+    }
+
+
+
+    public List<LongLat> a_Star(LongLat appleton, LongLat resPos, Region centralArea, List<Region> noFlyZones) throws JsonProcessingException {
+        Set<Node> closed = new HashSet<>() {};
+
+        //priority queue for selecting next node to expand
+        PriorityQueue<Node> open = new PriorityQueue<>(Comparator.comparingDouble(Node::getF));
+
+        double g;
+        double h;
+        boolean closeGap;
+        int counter = 1;
+
+        LongLatPair distanceChecker = new LongLatPair();
+        distanceChecker.setPos1(resPos);
+        distanceChecker.setPos2(appleton);
+
+        Node start = new Node();
+        Node current;
+        Node gapCloser;
+
+        start.setPos(resPos);
+        start.setG(0);
+        start.setH(parseDouble(getDistanceTo(mapper.writeValueAsString(distanceChecker)).getBody()));
+        start.setF(0, 0);
+        open.add(start);
+
+        List<Node> successors;
+
+        List<LongLat> path = null;
+
+        while (!open.isEmpty()) {
+
+            System.out.println("Iteration: " + counter);
+
+            current = open.poll();
+            successors = generateSuccessors(current, centralArea, noFlyZones);
+
+            closeGap = current.getH() > (30 * MOVEMENT);
+
+            if (counter >= 9000){
+                return getPath(current);
+            }
+
+            for (Node successor : successors) {
+
+                distanceChecker.setPos1(successor.getPos());
+
+                //return path from successor to goal if close to appleton
+                if (isClose(mapper.writeValueAsString(distanceChecker)).getBody()){
+                    path = getPath(successor);
+                    return path;
+                }
+                else {
+                    //calculate f for successor
+                    g = current.getG() + MOVEMENT;
+                    h = parseDouble(getDistanceTo(mapper.writeValueAsString(distanceChecker)).getBody());
+
+                    successor.setG(g);
+                    successor.setH(h);
+                    successor.setF(g, h);
+
+                    if (skipNode(successor, open) || skipNode(successor, closed) || current.getH() < h){
+                        continue;
+                    }
+                    if (!closeGap){
+                        open.add(successor);
+                    }
+                }
+            }
+
+            if (closeGap){
+                gapCloser = Collections.min(successors, Comparator.comparingDouble(Node::getH));
+                open.add(gapCloser);
+                System.out.println("Closing gap");
+            }
+            closed.add(current);
+            counter += 1;
+        }
+        return path;
     }
 
 
@@ -399,22 +482,22 @@ public class RESTController {
             centralCompareNew.setPosition(pos);
 
             //don't create successor if current is in central and successor is not
-            if (Boolean.TRUE.equals(isInRegion(mapper.writeValueAsString(centralCompareOld)).getBody()) &&
-                    Boolean.FALSE.equals(isInRegion(mapper.writeValueAsString(centralCompareNew)).getBody())) {
+            if (isInRegion(mapper.writeValueAsString(centralCompareOld)).getBody() &&
+                    !isInRegion(mapper.writeValueAsString(centralCompareNew)).getBody()) {
 
                 System.out.println("New neighbour leaves central");
                 continue;
             }
 
+            noFlyCompare.setPosition(pos);
             for (Region nfz : noFly) {
                 noFlyCompare.setRegion(nfz);
-                noFlyCompare.setPosition(pos);
 
-                    if (Boolean.TRUE.equals(isInRegion(mapper.writeValueAsString(noFlyCompare)).getBody())) {
-                        noFlyBool = true;
-                        break;
-                    }
+                if (isInRegion(mapper.writeValueAsString(noFlyCompare)).getBody()) {
+                    noFlyBool = true;
+                    break;
                 }
+            }
 
             //do not create successor if it is in NFZ
             if (noFlyBool){
@@ -433,71 +516,10 @@ public class RESTController {
             successor.setParent(node);
 
             successors.add(successor);
-            }
+        }
         return successors;
     }
 
-
-
-    public List<LongLat> a_Star(LongLat appleton, LongLat resPos, Region centralArea, List<Region> noFlyZones) throws JsonProcessingException {
-        Set<Node> closed = new HashSet<>() {};
-        //priority queue for selecting next node to expand
-        PriorityQueue<Node> open = new PriorityQueue<>(Comparator.comparingDouble(Node::getF));
-
-        double g;
-        double h;
-        int counter = 1;
-
-        LongLatPair distanceChecker = new LongLatPair();
-        distanceChecker.setPos2(appleton);
-
-        Node start = new Node();
-        Node current;
-
-        start.setPos(resPos);
-        start.setG(0);
-        start.setF(0, 0);
-        open.add(start);
-
-        List<Node> successors;
-        List<LongLat> path;
-
-        while (!open.isEmpty()) {
-
-            current = open.poll();
-            successors = generateSuccessors(current, centralArea, noFlyZones);
-
-            System.out.println("Iteration: " + counter);
-
-            for (Node successor : successors) {
-
-                distanceChecker.setPos1(successor.getPos());
-
-
-                //return path if at goal
-                if (isClose(mapper.writeValueAsString(distanceChecker)).getBody()) {
-                    path = getPath(successor);
-                    return path;
-                } else {
-                    //calculate f for successor
-                    g = successor.getParent().getG() + MOVEMENT;
-                    h = parseDouble(getDistanceTo(mapper.writeValueAsString(distanceChecker)).getBody());
-
-                    successor.setG(g);
-                    successor.setF(g, h);
-
-
-                    if (skipNode(successor, open) || skipNode(successor, closed)){
-                        continue;
-                    }
-                    open.add(successor);
-                }
-            }
-            closed.add(current);
-            counter += 1;
-        }
-        return null;
-    }
 
 
     //skips successor if it already exists with a lower f score
@@ -514,24 +536,21 @@ public class RESTController {
     }
 
 
-    public List<LongLat> getPath (Node goal){
+
+    public List<LongLat> getPath (Node node){
 
         List<LongLat> path = new ArrayList<>();
-        path.add(goal.getPos());
-
-        Node parent = goal.getParent();
 
         //follows path of parents until start reached
-        while (parent != null){
+        while (node != null){
 
-            path.add(parent.getPos());
-            parent = parent.getParent();
+            path.add(node.getPos());
+            node = node.getParent();
         }
 
-        //hovers added at both ends
-        path.add(path.get(path.size() - 1));
+        path.add(path.get(path.size()-1));
         Collections.reverse(path);
-        path.add(path.get(path.size() - 1));
+        path.add(path.get(path.size()-1));
 
         return path;
     }

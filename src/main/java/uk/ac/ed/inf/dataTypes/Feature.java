@@ -1,4 +1,4 @@
-package uk.ac.ed.inf;
+package uk.ac.ed.inf.dataTypes;
 
 public class Feature {
     private final String type = "Feature";
