@@ -1,9 +1,9 @@
 package uk.ac.ed.inf.dataTypes;
 
-public class PosRegion {
+public class isInRegionRequest {
 
-    public LongLat position;
-    public Region region;
+    private LongLat position;
+    private Region region;
 
     public LongLat getPosition(){
         return position;

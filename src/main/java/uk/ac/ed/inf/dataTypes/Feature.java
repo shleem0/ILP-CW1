@@ -5,6 +5,11 @@ public class Feature {
     private Geometry geometry;
     private Property properties;
 
+    public Feature(Geometry geometry, Property properties){
+        this.geometry = geometry;
+        this.properties = properties;
+    }
+
     public String getType() {
         return type;
     }

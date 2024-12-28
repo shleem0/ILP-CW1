@@ -8,9 +8,15 @@ public class Pizza {
     public String getName(){
         return name;
     }
+    public void setName(String name){
+        this.name = name;
+    }
 
     public int getPrice(){
         return priceInPence;
+    }
+    public void setPrice(int price){
+        this.priceInPence = price;
     }
 
     @Override

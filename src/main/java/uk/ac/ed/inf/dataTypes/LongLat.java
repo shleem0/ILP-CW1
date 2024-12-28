@@ -2,21 +2,16 @@ package uk.ac.ed.inf.dataTypes;
 
 public class LongLat{
 
-    public Double lng;
-    public Double lat;
+    private Double lng;
+    private Double lat;
 
-
-    public Double getLng(){
-        return this.lng;
-    }
-
-    public Double getLat(){
-        return this.lat;
-    }
+    public Double getLng(){return this.lng;}
 
     public void setLng(Double lng){
         this.lng = lng;
     }
+
+    public Double getLat(){return this.lat;}
 
     public void setLat(Double lat){
         this.lat = lat;

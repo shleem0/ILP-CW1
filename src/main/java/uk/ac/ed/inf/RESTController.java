@@ -46,7 +46,7 @@ public class RESTController {
 
         LongLatPair positions;
 
-        if (validator.inputStringValidator(longLatPair)) { //validating if body is empty
+        if (validator.inputStringValidator(longLatPair)) { //checking if body is empty
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid input");
         }
 
@@ -56,12 +56,12 @@ public class RESTController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Cannot map JSON to object");
         }
 
-        if (positions.getPos1() == null || positions.getPos2() == null) {
+        if (positions.getPosition1() == null || positions.getPosition2() == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Missing position(s)");
         } else {
 
-            LongLat pos1 = positions.getPos1();
-            LongLat pos2 = positions.getPos2();
+            LongLat pos1 = positions.getPosition1();
+            LongLat pos2 = positions.getPosition2();
 
             //semantic validation
             if (validator.longLatValidator(pos1.getLng(), pos1.getLat()) || validator.longLatValidator(pos2.getLng(), pos2.getLat())) {
@@ -102,7 +102,7 @@ public class RESTController {
     @PostMapping("/nextPosition")
     public ResponseEntity<String> nextPosition(@RequestBody String startPosAngle) throws JsonProcessingException {
 
-        PosAngle startPos;
+        MoveRequest startPos;
         double latChange;
         double lngChange;
 
@@ -111,7 +111,7 @@ public class RESTController {
         }
         else {
             try { //checking for correct JSON format
-                startPos = mapper.readValue(startPosAngle, PosAngle.class);
+                startPos = mapper.readValue(startPosAngle, MoveRequest.class);
             } catch (JsonProcessingException e) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Cannot map JSON to object");
             }
@@ -143,14 +143,14 @@ public class RESTController {
     public ResponseEntity<Boolean> isInRegion(@RequestBody String posRegionStr) {
 
         Path2D.Double regionPoly = new Path2D.Double();
-        PosRegion posRegion;
+        isInRegionRequest posRegion;
 
         if (validator.inputStringValidator(posRegionStr)) { //checking for empty input
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } else {
 
             try { //checking for correct JSON format
-                posRegion = mapper.readValue(posRegionStr, PosRegion.class);
+                posRegion = mapper.readValue(posRegionStr, isInRegionRequest.class);
             } catch (JsonProcessingException e){
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
             }
@@ -202,10 +202,9 @@ public class RESTController {
 
         //initialise local variables
         Order order;
-        OrderValidationResult result = new OrderValidationResult();
-        result.setValidationCode(OrderValidationCode.UNDEFINED);
-        result.setStatus(OrderStatus.UNDEFINED);
+        OrderValidationResult result = new OrderValidationResult(OrderStatus.UNDEFINED, OrderValidationCode.UNDEFINED);
 
+        //get restaurants from rest service
         StringBuilder resBody = getDataFromREST("https://ilp-rest-2024.azurewebsites.net/restaurants");
         List<Restaurant> restaurants = mapper.readValue(resBody.toString(), new TypeReference<List<Restaurant>>(){});
 
@@ -213,7 +212,7 @@ public class RESTController {
         if (validator.inputStringValidator(orderStr)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } else {
-            try { //try read json into order class
+            try { //read json into order class
                 order = mapper.readValue(orderStr, Order.class);
             } catch (JsonProcessingException e) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
@@ -231,11 +230,11 @@ public class RESTController {
                 LocalDate orderDate = LocalDate.parse(order.getOrderDate());
                 YearMonth orderDateYM = YearMonth.from(orderDate);
 
-                //check all validations methods and add responses to list
+                //check for all errors and add responses to list
                 codes.add(order.getCreditCardInformation().validateCreditCard(orderDateYM));
-                codes.add(order.validatePizzas(restaurants, orderDate));
+                codes.add(order.validatePizzas(validator, restaurants, orderDate));
 
-                //as only 1 error can occur, check all codes take the 1 that is NOT undefined
+                //as only 1 error can occur, check all codes and take the 1 that is NOT undefined
                 for (OrderValidationCode code : codes) {
                     if (code != OrderValidationCode.UNDEFINED) {
                         result.setValidationCode(code);
@@ -247,7 +246,6 @@ public class RESTController {
                 if (result.getOrderValidationCode() == OrderValidationCode.UNDEFINED) {
                     result.setValidationCode(OrderValidationCode.NO_ERROR);
                     result.setStatus(OrderStatus.VALID);
-                    System.out.println("Valid order");
                 }
             }
         }
@@ -259,8 +257,8 @@ public class RESTController {
     @PostMapping("/calcDeliveryPath")
     public ResponseEntity<List<LongLat>> calcDeliveryPath (@RequestBody String orderStr) throws IOException {
 
-
         Order order;
+
         //get data from REST service
         StringBuilder resBody = getDataFromREST("https://ilp-rest-2024.azurewebsites.net/restaurants");
         List<Restaurant> restaurants = mapper.readValue(resBody.toString(), new TypeReference<List<Restaurant>>() {});
@@ -292,16 +290,17 @@ public class RESTController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
 
-        //get restaurant code and position
+        //get restaurant and its position
         Restaurant orderRestaurant = getOrderRestaurant(order, restaurants);
         LongLat resPos = orderRestaurant.getLocation();
 
         List<LongLat> path = a_Star(appleton, resPos, centralArea, noFlyZones);
 
+        //no path found
         if (path == null) {
-            //no path found
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
+
         return ResponseEntity.ok(path);
     }
 
@@ -317,25 +316,21 @@ public class RESTController {
         }
 
         //initialise objects for geojson
-        GeoJSON geoJSON = new GeoJSON();
         List<Feature> features = new ArrayList<>();
         Property properties = new Property();
-        Feature feature = new Feature();
-        Geometry geometry = new Geometry();
 
-        feature.setProperties(properties);
-        features.add(feature);
-        geoJSON.setFeatures(features);
-
-        List<List<Double>> geometryPoints = new ArrayList<>();
+        List<List<Double>> pathGeometryPoints = new ArrayList<>();
 
         for (LongLat point : path){
-            geometryPoints.add(Arrays.asList(point.getLng(), point.getLat()));
+            pathGeometryPoints.add(Arrays.asList(point.getLng(), point.getLat()));
         }
 
-        geometry.setCoordinates(geometryPoints);
-        feature.setGeometry(geometry);
+        Geometry pathGeometry = new Geometry("LineString", pathGeometryPoints);
+        Feature pathFeature = new Feature(pathGeometry, properties);
 
+        features.add(pathFeature);
+
+        GeoJSON geoJSON = new GeoJSON(features);
         return ResponseEntity.ok(geoJSON);
     }
 
@@ -369,20 +364,19 @@ public class RESTController {
         double g;
         double h;
         boolean closeGap;
-        int counter = 1;
 
         LongLatPair distanceChecker = new LongLatPair();
-        distanceChecker.setPos1(resPos);
-        distanceChecker.setPos2(appleton);
+        distanceChecker.setPosition1(resPos);
+        distanceChecker.setPosition2(appleton);
 
-        Node start = new Node();
         Node current;
         Node gapCloser;
 
-        start.setPos(resPos);
+        Node start = new Node(resPos, null);
         start.setG(0);
         start.setH(parseDouble(getDistanceTo(mapper.writeValueAsString(distanceChecker)).getBody()));
-        start.setF(0, 0);
+        start.setF();
+
         open.add(start);
 
         List<Node> successors;
@@ -391,20 +385,14 @@ public class RESTController {
 
         while (!open.isEmpty()) {
 
-            System.out.println("Iteration: " + counter);
-
             current = open.poll();
             successors = generateSuccessors(current, centralArea, noFlyZones);
 
             closeGap = current.getH() > (30 * MOVEMENT);
 
-            if (counter >= 9000){
-                return getPath(current);
-            }
-
             for (Node successor : successors) {
 
-                distanceChecker.setPos1(successor.getPos());
+                distanceChecker.setPosition1(successor.getPos());
 
                 //return path from successor to goal if close to appleton
                 if (isClose(mapper.writeValueAsString(distanceChecker)).getBody()){
@@ -418,7 +406,7 @@ public class RESTController {
 
                     successor.setG(g);
                     successor.setH(h);
-                    successor.setF(g, h);
+                    successor.setF();
 
                     if (skipNode(successor, open) || skipNode(successor, closed) || current.getH() < h){
                         continue;
@@ -435,7 +423,6 @@ public class RESTController {
                 System.out.println("Closing gap");
             }
             closed.add(current);
-            counter += 1;
         }
         return path;
     }
@@ -446,13 +433,13 @@ public class RESTController {
 
         List<Node> successors = new ArrayList<>();
 
-        PosRegion centralCompareOld = new PosRegion();
+        isInRegionRequest centralCompareOld = new isInRegionRequest();
         centralCompareOld.setRegion(central);
 
-        PosRegion centralCompareNew = new PosRegion();
+        isInRegionRequest centralCompareNew = new isInRegionRequest();
         centralCompareNew.setRegion(central);
 
-        PosRegion noFlyCompare = new PosRegion();
+        isInRegionRequest noFlyCompare = new isInRegionRequest();
         boolean noFlyBool;
         LongLat parentPos = new LongLat();
 
@@ -470,9 +457,9 @@ public class RESTController {
                 break;
             }
 
-            PosAngle posAngle = new PosAngle();
-            posAngle.setAngle(angle);
+            MoveRequest posAngle = new MoveRequest();
             posAngle.setStart(node.getPos());
+            posAngle.setAngle(angle);
 
             //get position of successors
             String posString = nextPosition(mapper.writeValueAsString(posAngle)).getBody();
@@ -511,9 +498,7 @@ public class RESTController {
                 continue;
             }
 
-            Node successor = new Node();
-            successor.setPos(pos);
-            successor.setParent(node);
+            Node successor = new Node(pos, node);
 
             successors.add(successor);
         }

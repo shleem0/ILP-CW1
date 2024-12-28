@@ -10,6 +10,11 @@ public class Node {
     private double h;
     private Node parent;
 
+    public Node(LongLat pos, Node parent){
+        this.pos = pos;
+        this.parent = parent;
+    }
+
     public LongLat getPos(){
         return pos;
     }
@@ -27,8 +32,8 @@ public class Node {
     public double getF(){
         return f;
     }
-    public void setF(double g, double h){
-        this.f = g + h;
+    public void setF(){
+        this.f = this.g + this.h;
     }
 
     public double getH(){

@@ -6,6 +6,10 @@ public class GeoJSON {
     private final String type = "FeatureCollection";
     private List<Feature> features;
 
+    public GeoJSON(List<Feature> features) {
+        this.features = features;
+    }
+
     public String getType(){
         return type;
     }
