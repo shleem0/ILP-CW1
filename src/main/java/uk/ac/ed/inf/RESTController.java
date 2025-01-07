@@ -120,16 +120,25 @@ public class RESTController {
             LongLat position = startPos.getStart();
 
             //validating position
-            if (angle == null || angle < 0 || angle > 360 || validator.longLatValidator(position.getLng(), position.getLat())){
+            if (angle == null || position == null || angle < 0 || (angle >= 360 && angle != 999) || validator.longLatValidator(position.getLng(), position.getLat())){
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid position");
             }
             else{
+
+                //hover
+                if (angle == 999.0){
+                    return ResponseEntity.ok(mapper.writeValueAsString(position));
+                }
                 latChange = MOVEMENT * Math.cos(Math.toRadians(angle)); //calculating movement in lat and long
                 lngChange = MOVEMENT * Math.sin(Math.toRadians(angle));
 
                 //adjusting position
                 position.setLat(position.getLat() + latChange);
                 position.setLng(position.getLng() + lngChange);
+            }
+
+            while (validator.longLatValidator(position.getLng(), position.getLat())) {
+                validator.longLatConverter(position);
             }
 
             String nextPosition = mapper.writeValueAsString(position);
@@ -160,7 +169,7 @@ public class RESTController {
             List<LongLat> vertices = region.getVertices();
 
             //verifying vertices can close shape
-            if (vertices.size() < 3 || !vertices.get(0).getLat().equals(vertices.get(vertices.size() - 1).getLat())
+            if (vertices.size() <= 3 || !vertices.get(0).getLat().equals(vertices.get(vertices.size() - 1).getLat())
                     || !vertices.get(0).getLng().equals(vertices.get(vertices.size() - 1).getLng())){
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
             } else {
@@ -179,21 +188,19 @@ public class RESTController {
                 Double lng = position.getLng();
                 Double lat = position.getLat();
 
-                if (validator.longLatValidator(lng, lat)) {
+                if (validator.longLatValidator(lng, lat)){
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-                } else {
-                    boolean contains = regionPoly.contains(lng, lat); //checking if point is in polygon
+                }
 
-                    Rectangle2D rect = new Rectangle2D.Double(lng - TOLERANCE, lat - TOLERANCE, 2 * TOLERANCE, 2 * TOLERANCE);
-                    boolean onBoundary = regionPoly.intersects(rect); //checking if point is on boundary
+                boolean contains = regionPoly.contains(lng, lat);
+                boolean onBoundary = getOnBoundary(position, regionPoly);
 
-                    boolean response = contains || onBoundary;
+                boolean response = contains || onBoundary;
 
-                    return ResponseEntity.ok(response);
+                return ResponseEntity.ok(response);
                 }
             }
         }
-    }
 
 
 
@@ -338,7 +345,20 @@ public class RESTController {
 
 //helper/non-main functions--------------------------------------
 
-    public Restaurant getOrderRestaurant(Order order, List<Restaurant> restaurants){
+
+    public boolean getOnBoundary(LongLat position, Path2D regionPoly){//checking if point is in polygon
+
+        Double lng = position.getLng();
+        Double lat = position.getLat();
+
+        Rectangle2D rect = new Rectangle2D.Double(lng - TOLERANCE, lat - TOLERANCE, 2 * TOLERANCE, 2 * TOLERANCE);
+        boolean onBoundary = regionPoly.intersects(rect); //checking if point is on boundary
+
+        return onBoundary;
+    }
+
+
+    public Restaurant getOrderRestaurant (Order order, List < Restaurant > restaurants){
         String pizza = order.getPizzasInOrder().get(0).getName();
         List<String> menuPizzaNames;
 
@@ -354,9 +374,9 @@ public class RESTController {
     }
 
 
-
-    public List<LongLat> a_Star(LongLat appleton, LongLat resPos, Region centralArea, List<Region> noFlyZones) throws JsonProcessingException {
-        Set<Node> closed = new HashSet<>() {};
+    public List<LongLat> a_Star (LongLat appleton, LongLat resPos, Region centralArea, List < Region > noFlyZones) throws JsonProcessingException {
+        Set<Node> closed = new HashSet<>() {
+        };
 
         //priority queue for selecting next node to expand
         PriorityQueue<Node> open = new PriorityQueue<>(Comparator.comparingDouble(Node::getF));
@@ -395,11 +415,10 @@ public class RESTController {
                 distanceChecker.setPosition1(successor.getPos());
 
                 //return path from successor to goal if close to appleton
-                if (isClose(mapper.writeValueAsString(distanceChecker)).getBody()){
+                if (isClose(mapper.writeValueAsString(distanceChecker)).getBody()) {
                     path = getPath(successor);
                     return path;
-                }
-                else {
+                } else {
                     //calculate f for successor
                     g = current.getG() + MOVEMENT;
                     h = parseDouble(getDistanceTo(mapper.writeValueAsString(distanceChecker)).getBody());
@@ -408,16 +427,16 @@ public class RESTController {
                     successor.setH(h);
                     successor.setF();
 
-                    if (skipNode(successor, open) || skipNode(successor, closed) || current.getH() < h){
+                    if (skipNode(successor, open) || skipNode(successor, closed) || current.getH() < h) {
                         continue;
                     }
-                    if (!closeGap){
+                    if (!closeGap) {
                         open.add(successor);
                     }
                 }
             }
 
-            if (closeGap){
+            if (closeGap) {
                 gapCloser = Collections.min(successors, Comparator.comparingDouble(Node::getH));
                 open.add(gapCloser);
                 System.out.println("Closing gap");
@@ -428,8 +447,7 @@ public class RESTController {
     }
 
 
-
-    public List<Node> generateSuccessors(Node node, Region central, List<Region> noFly) throws JsonProcessingException {
+    public List<Node> generateSuccessors (Node node, Region central, List < Region > noFly) throws JsonProcessingException {
 
         List<Node> successors = new ArrayList<>();
 
@@ -453,7 +471,7 @@ public class RESTController {
 
             noFlyBool = false;
 
-            if (angle == 999.0){
+            if (angle == 999.0) {
                 break;
             }
 
@@ -487,14 +505,14 @@ public class RESTController {
             }
 
             //do not create successor if it is in NFZ
-            if (noFlyBool){
+            if (noFlyBool) {
                 System.out.println("New neighbour in NFZ");
                 continue;
             }
 
             //do not create successor if it is in current's parent's position
             if (node.getParent() != null && parentPos.getLng().equals(pos.getLng())
-                    && parentPos.getLat().equals(pos.getLat())){
+                    && parentPos.getLat().equals(pos.getLat())) {
                 continue;
             }
 
@@ -506,14 +524,13 @@ public class RESTController {
     }
 
 
-
     //skips successor if it already exists with a lower f score
-    public boolean skipNode(Node successor, Collection<Node> list){
+    public boolean skipNode (Node successor, Collection < Node > list){
         for (Node node : list) {
             LongLat pos = node.getPos();
 
             if (pos.getLat().equals(successor.getPos().getLat()) && pos.getLng().equals(successor.getPos().getLng()) &&
-                    node.getF() <= successor.getF()){
+                    node.getF() <= successor.getF()) {
                 return true;
             }
         }
@@ -521,28 +538,26 @@ public class RESTController {
     }
 
 
-
     public List<LongLat> getPath (Node node){
 
         List<LongLat> path = new ArrayList<>();
 
         //follows path of parents until start reached
-        while (node != null){
+        while (node != null) {
 
             path.add(node.getPos());
             node = node.getParent();
         }
 
-        path.add(path.get(path.size()-1));
+        path.add(path.get(path.size() - 1));
         Collections.reverse(path);
-        path.add(path.get(path.size()-1));
+        path.add(path.get(path.size() - 1));
 
         return path;
     }
 
 
-
-    public StringBuilder getDataFromREST(String urlStr) throws IOException {
+    public StringBuilder getDataFromREST (String urlStr) throws IOException {
 
         HttpURLConnection conn;
 
@@ -567,7 +582,6 @@ public class RESTController {
             body.append(line);
         }
         reader.close();
-
         return body;
     }
 }

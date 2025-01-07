@@ -24,4 +24,14 @@ public class OrderValidationResult {
         this.orderValidationCode = code;
     }
 
+    @Override
+    public boolean equals(Object obj){
+        if(obj instanceof OrderValidationResult){
+            OrderValidationResult other = (OrderValidationResult)obj;
+            return this.orderStatus.equals(other.orderStatus) && this.orderValidationCode.equals(other.orderValidationCode);
+        }
+        return false;
+    }
+
+
 }
