@@ -84,11 +84,9 @@ public class Order {
         String prevResName = null;
 
         if (pizzasInOrder.isEmpty()) {
-            System.out.println("Empty");
             return OrderValidationCode.EMPTY_ORDER;
 
         } else if (pizzasInOrder.size() > 4) {
-            System.out.println("Max pizzas");
             return OrderValidationCode.MAX_PIZZA_COUNT_EXCEEDED;
 
         } else {
@@ -114,17 +112,14 @@ public class Order {
                         openingDays = restaurant.getDays();
 
                         if (!openingDays.contains(day.toString().toUpperCase())) {
-                            System.out.println("Res closed");
                             return OrderValidationCode.RESTAURANT_CLOSED;
                         }
 
                         if (pizza.getPrice() != menu.get(menuPizzaNames.indexOf(pizza.getName())).getPrice()) {
-                            System.out.println("Invalid price");
                             return OrderValidationCode.PRICE_FOR_PIZZA_INVALID;
                         }
 
                         if (!resName.equals(prevResName) && prevResName != null){
-                            System.out.println("Multiple res");
                             return OrderValidationCode.PIZZA_FROM_MULTIPLE_RESTAURANTS;
                         }
                         else{
@@ -134,7 +129,6 @@ public class Order {
                     }
                 }
                 if (!pizzaFound) {
-                    System.out.println("Undefined pizza");
                     return OrderValidationCode.PIZZA_NOT_DEFINED;
                 }
             }

@@ -41,16 +41,12 @@ public class CreditCard {
         }
 
         if (expiry.isBefore(orderDate)) {
-            System.out.println("Invalid expiry");
             return OrderValidationCode.EXPIRY_DATE_INVALID;
 
         } else if (creditCardNumber.length() != 16 || !creditCardNumber.chars().allMatch(Character::isDigit)) {
-            System.out.println(creditCardNumber);
-            System.out.println("Invalid card");
             return OrderValidationCode.CARD_NUMBER_INVALID;
 
         } else if (cvv.length() != 3 || !cvv.chars().allMatch(Character::isDigit)){
-            System.out.println("Invalid cvv");
             return OrderValidationCode.CVV_INVALID;
 
         } else {

@@ -316,7 +316,7 @@ public class RESTController {
     @PostMapping("/calcDeliveryPathAsGeoJson")
     public ResponseEntity<GeoJSON> calcDeliveryPathAsGeoJson (@RequestBody String orderStr) throws IOException {
 
-        //validate path
+        //check for valid path
         List<LongLat> path = calcDeliveryPath(orderStr).getBody();
         if (path == null){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
@@ -359,6 +359,7 @@ public class RESTController {
 
 
     public Restaurant getOrderRestaurant (Order order, List < Restaurant > restaurants){
+        //get restaurant of given order
         String pizza = order.getPizzasInOrder().get(0).getName();
         List<String> menuPizzaNames;
 
@@ -378,7 +379,7 @@ public class RESTController {
         Set<Node> closed = new HashSet<>() {
         };
 
-        //priority queue for selecting next node to expand
+        //priority queue for selecting next node to expand (node with lowest f chosen)
         PriorityQueue<Node> open = new PriorityQueue<>(Comparator.comparingDouble(Node::getF));
 
         double g;
@@ -392,6 +393,7 @@ public class RESTController {
         Node current;
         Node gapCloser;
 
+        //initialising the start node at the restaurant
         Node start = new Node(resPos, null);
         start.setG(0);
         start.setH(parseDouble(getDistanceTo(mapper.writeValueAsString(distanceChecker)).getBody()));
@@ -403,11 +405,13 @@ public class RESTController {
 
         List<LongLat> path = null;
 
+        //carry out a* search algorithm
         while (!open.isEmpty()) {
 
             current = open.poll();
             successors = generateSuccessors(current, centralArea, noFlyZones);
 
+            //check to see if gap should be closed instead of doing heuristic search
             closeGap = current.getH() > (30 * MOVEMENT);
 
             for (Node successor : successors) {
@@ -437,9 +441,9 @@ public class RESTController {
             }
 
             if (closeGap) {
+                //if closing gap (30 moves away), add the node closest to the goal (lowest h) to open list
                 gapCloser = Collections.min(successors, Comparator.comparingDouble(Node::getH));
                 open.add(gapCloser);
-                System.out.println("Closing gap");
             }
             closed.add(current);
         }
@@ -467,6 +471,7 @@ public class RESTController {
             parentPos.setLat(node.getParent().getPos().getLat());
         }
 
+        //make successor for each movement angle
         for (Double angle : ANGLES) {
 
             noFlyBool = false;
@@ -475,6 +480,7 @@ public class RESTController {
                 break;
             }
 
+            //find the position of the node by moving from current node at the current angle
             MoveRequest posAngle = new MoveRequest();
             posAngle.setStart(node.getPos());
             posAngle.setAngle(angle);
@@ -486,11 +492,10 @@ public class RESTController {
             centralCompareOld.setPosition(node.getPos());
             centralCompareNew.setPosition(pos);
 
-            //don't create successor if current is in central and successor is not
+            //don't create successor if current is in central and successor is not (never leaves central)
             if (isInRegion(mapper.writeValueAsString(centralCompareOld)).getBody() &&
                     !isInRegion(mapper.writeValueAsString(centralCompareNew)).getBody()) {
 
-                System.out.println("New neighbour leaves central");
                 continue;
             }
 
@@ -506,7 +511,6 @@ public class RESTController {
 
             //do not create successor if it is in NFZ
             if (noFlyBool) {
-                System.out.println("New neighbour in NFZ");
                 continue;
             }
 
@@ -524,7 +528,7 @@ public class RESTController {
     }
 
 
-    //skips successor if it already exists with a lower f score
+    //skips successor if node in the same position has a lower f score
     public boolean skipNode (Node successor, Collection < Node > list){
         for (Node node : list) {
             LongLat pos = node.getPos();
@@ -549,6 +553,7 @@ public class RESTController {
             node = node.getParent();
         }
 
+        //adding hovers
         path.add(path.get(path.size() - 1));
         Collections.reverse(path);
         path.add(path.get(path.size() - 1));

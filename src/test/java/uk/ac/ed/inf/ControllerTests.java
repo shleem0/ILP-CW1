@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import uk.ac.ed.inf.dataTypes.*;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -413,6 +414,48 @@ public class ControllerTests {
         HttpStatusCode result = restController.isInRegion(mapper.writeValueAsString(testRegionReq)).getStatusCode();
 
         assertEquals(HttpStatus.BAD_REQUEST, result);
+    }
+
+
+    //calcDeliveryPathAsGeoJson
+    @Test
+    public void calcDeliveryPathAsGeoJson_FormatTest1() throws IOException {
+
+        String order = "{\"orderNo\":\"5E8191FB\",\"orderDate\":\"2025-01-08\",\"orderStatus\":\"UNDEFINED\"," +
+                "\"orderValidationCode\":\"UNDEFINED\",\"priceTotalInPence\":2400," +
+                "\"pizzasInOrder\":[{\"name\":\"R3: Super Cheese\",\"priceInPence\":1400}," +
+                "{\"name\":\"R3: All Shrooms\",\"priceInPence\":900}]," +
+                "\"creditCardInformation\":{\"creditCardNumber\":\"5227438597039906\"," +
+                "\"creditCardExpiry\":\"02/26\",\"cvv\":\"474\"}}";
+
+        String format = "\\{\\s*\"type\":\\s*\"FeatureCollection\",\\s*\"features\":\\s*\\[\\s*\\{\\s*\"type\":\\s*" +
+                "\"Feature\",\\s*\"geometry\":\\s*\\{\\s*\"type\":\\s*\"LineString\",\\s*" +
+                "\"coordinates\":\\s*\\[\\s*\\[\\s*-?\\d+\\.\\d+,\\s*-?\\d+\\.\\d+\\s*\\](,\\s*\\[\\s*-?\\d+\\.\\d+,\\s*-?\\d+\\.\\d+\\s*\\])*\\s*\\]\\s*\\},\\s*" +
+                "\"properties\":\\s*\\{\\s*\"prop0\":\\s*\"[^\"]*\"\\s*\\}\\s*\\}\\s*\\]\\s*\\}";
+
+        String geoJSONPath = mapper.writeValueAsString(restController.calcDeliveryPathAsGeoJson(order).getBody());
+
+        assertTrue(geoJSONPath.matches(format));
+    }
+
+    @Test
+    public void calcDeliveryPathAsGeoJson_FormatTest2() throws IOException {
+
+        String order = "{\"orderNo\":\"6E703605\",\"orderDate\":\"2025-01-07\",\"orderStatus\":\"UNDEFINED\"," +
+                "\"orderValidationCode\":\"UNDEFINED\",\"priceTotalInPence\":2600," +
+                "\"pizzasInOrder\":[{\"name\":\"R2: Meat Lover\",\"priceInPence\":1400}," +
+                "{\"name\":\"R2: Vegan Delight\",\"priceInPence\":1100}]," +
+                "\"creditCardInformation\":{\"creditCardNumber\":\"1111111111111111\"," +
+                "\"creditCardExpiry\":\"05/25\",\"cvv\":\"382\"}}";
+
+        String format = "\\{\\s*\"type\":\\s*\"FeatureCollection\",\\s*\"features\":\\s*\\[\\s*\\{\\s*\"type\":\\s*" +
+                "\"Feature\",\\s*\"geometry\":\\s*\\{\\s*\"type\":\\s*\"LineString\",\\s*" +
+                "\"coordinates\":\\s*\\[\\s*\\[\\s*-?\\d+\\.\\d+,\\s*-?\\d+\\.\\d+\\s*\\](,\\s*\\[\\s*-?\\d+\\.\\d+,\\s*-?\\d+\\.\\d+\\s*\\])*\\s*\\]\\s*\\},\\s*" +
+                "\"properties\":\\s*\\{\\s*\"prop0\":\\s*\"[^\"]*\"\\s*\\}\\s*\\}\\s*\\]\\s*\\}";
+
+        String geoJSONPath = mapper.writeValueAsString(restController.calcDeliveryPathAsGeoJson(order).getBody());
+
+        assertTrue(geoJSONPath.matches(format));
     }
 
 
