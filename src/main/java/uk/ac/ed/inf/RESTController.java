@@ -246,6 +246,7 @@ public class RESTController {
                     if (code != OrderValidationCode.UNDEFINED) {
                         result.setValidationCode(code);
                         result.setStatus(OrderStatus.INVALID);
+                        break;
                     }
                 }
 
@@ -343,7 +344,7 @@ public class RESTController {
 
 
 
-//helper/non-main functions--------------------------------------
+//helper functions--------------------------------------
 
 
     public boolean getOnBoundary(LongLat position, Path2D regionPoly){//checking if point is in polygon
@@ -375,7 +376,9 @@ public class RESTController {
     }
 
 
-    public List<LongLat> a_Star (LongLat appleton, LongLat resPos, Region centralArea, List < Region > noFlyZones) throws JsonProcessingException {
+    public List<LongLat> a_Star (LongLat appleton, LongLat resPos, Region centralArea, List <Region> noFlyZones)
+            throws JsonProcessingException {
+
         Set<Node> closed = new HashSet<>() {
         };
 
@@ -441,7 +444,7 @@ public class RESTController {
             }
 
             if (closeGap) {
-                //if closing gap (30 moves away), add the node closest to the goal (lowest h) to open list
+                //if closing gap (30 moves away), only add the node closest to the goal (lowest h) to open
                 gapCloser = Collections.min(successors, Comparator.comparingDouble(Node::getH));
                 open.add(gapCloser);
             }
@@ -451,7 +454,7 @@ public class RESTController {
     }
 
 
-    public List<Node> generateSuccessors (Node node, Region central, List < Region > noFly) throws JsonProcessingException {
+    public List<Node> generateSuccessors (Node node, Region central, List <Region> noFly) throws JsonProcessingException {
 
         List<Node> successors = new ArrayList<>();
 
