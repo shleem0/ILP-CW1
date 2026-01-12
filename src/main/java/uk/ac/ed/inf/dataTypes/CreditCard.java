@@ -8,6 +8,14 @@ public class CreditCard {
     private String creditCardExpiry;
     private String cvv;
 
+    public CreditCard(){};
+
+    public CreditCard(String num, String expiryVal, String cvvVal) {
+        this.creditCardNumber = num;
+        this.creditCardExpiry = expiryVal;
+        this.cvv = cvvVal;
+    }
+
     public String getCreditCardNumber(){
         return creditCardNumber;
     }

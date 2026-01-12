@@ -5,6 +5,13 @@ public class Pizza {
     public String name;
     public int priceInPence;
 
+    public Pizza(){};
+
+    public Pizza(String name, int price) {
+        this.name = name;
+        this.priceInPence = price;
+    }
+
     public String getName(){
         return name;
     }

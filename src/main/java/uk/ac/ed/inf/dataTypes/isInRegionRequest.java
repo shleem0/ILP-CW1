@@ -5,6 +5,13 @@ public class isInRegionRequest {
     private LongLat position;
     private Region region;
 
+    public isInRegionRequest(){}
+
+    public isInRegionRequest(LongLat position, Region region) {
+        this.position = position;
+        this.region = region;
+    }
+
     public LongLat getPosition(){
         return position;
     }

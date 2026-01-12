@@ -18,6 +18,8 @@ public class Order {
 
     private CreditCard creditCardInformation;
 
+    public Order(){};
+
     public String getOrderNo(){
         return orderNo;
     }

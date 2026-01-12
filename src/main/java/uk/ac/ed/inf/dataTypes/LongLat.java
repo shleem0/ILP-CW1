@@ -5,6 +5,13 @@ public class LongLat{
     private Double lng;
     private Double lat;
 
+    public LongLat(){}
+
+    public LongLat(Double lng, Double lat){
+        this.lng = lng;
+        this.lat = lat;
+    }
+
     public Double getLng(){return this.lng;}
 
     public void setLng(Double lng){

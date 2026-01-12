@@ -5,6 +5,13 @@ public class LongLatPair{
     private LongLat pos1;
     private LongLat pos2;
 
+    public LongLatPair(){}
+
+    public LongLatPair(LongLat pos1, LongLat pos2){
+        this.pos1 = pos1;
+        this.pos2 = pos2;
+    }
+
     public LongLat getPosition1(){
         return pos1;
     }

@@ -10,6 +10,8 @@ public class Restaurant {
 
     public List<Pizza> menu;
 
+    public Restaurant(){}
+
     public String getName(){
         return name;
     }

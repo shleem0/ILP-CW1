@@ -31,15 +31,27 @@ import static uk.ac.ed.inf.SystemConstants.*;
 public class RESTController {
     ObjectMapper mapper = new ObjectMapper().setDefaultPrettyPrinter(new DefaultPrettyPrinter());
     InputValidator validator = new InputValidator();
+    String restaurantURL = "https://ilp-rest-2024.azurewebsites.net/restaurants";
+    String nfzURL = "https://ilp-rest-2024.azurewebsites.net/noFlyZones";
+    String centralURL = "https://ilp-rest-2024.azurewebsites.net/centralArea";
 
+    public void setRestaurantURL(String restaurantURL) {
+        this.restaurantURL = restaurantURL;
+    }
+
+    public void setNfzURL(String nfzURL) {
+        this.nfzURL = nfzURL;
+    }
+
+    public void setCentralURL(String centralURL) {
+        this.centralURL = centralURL;
+    }
 
 
     @GetMapping("/uuid")
     public ResponseEntity<String> getUUID() {
         return ResponseEntity.ok("s2281597");
     }
-
-
 
     @PostMapping("/distanceTo")
     public ResponseEntity<String> getDistanceTo(@RequestBody String longLatPair) {
@@ -154,7 +166,7 @@ public class RESTController {
         Path2D.Double regionPoly = new Path2D.Double();
         isInRegionRequest posRegion;
 
-        if (validator.inputStringValidator(posRegionStr)) { //checking for empty input
+        if (validator.inputStringValidator(posRegionStr)) {//checking for empty input
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } else {
 
@@ -212,15 +224,17 @@ public class RESTController {
         OrderValidationResult result = new OrderValidationResult(OrderStatus.UNDEFINED, OrderValidationCode.UNDEFINED);
 
         //get restaurants from rest service
-        StringBuilder resBody = getDataFromREST("https://ilp-rest-2024.azurewebsites.net/restaurants");
+        StringBuilder resBody = getDataFromREST(restaurantURL);
         List<Restaurant> restaurants = mapper.readValue(resBody.toString(), new TypeReference<List<Restaurant>>(){});
 
         //check input isn't null
         if (validator.inputStringValidator(orderStr)) {
+
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } else {
             try { //read json into order class
                 order = mapper.readValue(orderStr, Order.class);
+
             } catch (JsonProcessingException e) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
             }
@@ -268,13 +282,13 @@ public class RESTController {
         Order order;
 
         //get data from REST service
-        StringBuilder resBody = getDataFromREST("https://ilp-rest-2024.azurewebsites.net/restaurants");
+        StringBuilder resBody = getDataFromREST(restaurantURL);
         List<Restaurant> restaurants = mapper.readValue(resBody.toString(), new TypeReference<List<Restaurant>>() {});
 
-        StringBuilder centralBody = getDataFromREST("https://ilp-rest-2024.azurewebsites.net/centralArea");
+        StringBuilder centralBody = getDataFromREST(centralURL);
         Region centralArea = mapper.readValue(centralBody.toString(), Region.class);
 
-        StringBuilder noFlyBody = getDataFromREST("https://ilp-rest-2024.azurewebsites.net/noFlyZones");
+        StringBuilder noFlyBody = getDataFromREST(nfzURL);
         List<Region> noFlyZones = mapper.readValue(noFlyBody.toString(), new TypeReference<List<Region>>() {});
 
         LongLat appleton = new LongLat();
@@ -286,6 +300,7 @@ public class RESTController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } else {
             try {
+                
                 order = mapper.readValue(orderStr, Order.class);
             } catch (Exception e) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
@@ -301,6 +316,20 @@ public class RESTController {
         //get restaurant and its position
         Restaurant orderRestaurant = getOrderRestaurant(order, restaurants);
         LongLat resPos = orderRestaurant.getLocation();
+        isInRegionRequest checker = new isInRegionRequest();
+
+        for (Region nfz : noFlyZones){
+            checker.setRegion(nfz);
+
+            checker.setPosition(resPos);
+            if (isInRegion(mapper.writeValueAsString(checker)).getBody()){
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            }
+            checker.setPosition(appleton);
+            if (isInRegion(mapper.writeValueAsString(checker)).getBody()){
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            }
+        }
 
         List<LongLat> path = a_Star(appleton, resPos, centralArea, noFlyZones);
 
@@ -345,7 +374,6 @@ public class RESTController {
 
 
 //helper functions--------------------------------------
-
 
     public boolean getOnBoundary(LongLat position, Path2D regionPoly){//checking if point is in polygon
 
